@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>繪本電子書</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background-color: #2c2523;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .book-container {
+      position: relative;
+      width: 90vw;
+      max-width: 900px;
+      background: #1e1918;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .page-display {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 4px solid #4a3b32;
+    }
+
+    .page-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.3s ease;
+    }
+
+    .controls-panel {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 600px;
+      gap: 15px;
+    }
+
+    .nav-btn, .action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-btn:hover, .action-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .nav-btn img, .action-btn img {
+      height: 50px;
+      object-fit: contain;
+    }
+
+    .page-info {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #e6c594;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .audio-controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .bgm-toggle {
+      background: #4a3b32;
+      color: #e6c594;
+      border: 1px solid #e6c594;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .bgm-toggle:hover {
+      background: #e6c594;
+      color: #1e1918;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="book-container">
+    <!-- 主畫面與繪本圖片 -->
+    <div class="page-display">
+      <img id="currentPageImg" class="page-image" src="assets/graphics/0.jpg" alt="頁面圖片">
+    </div>
+
+    <!-- 控制列 -->
+    <div class="controls-panel">
+      <!-- 上一頁按鈕 -->
+      <button id="prevBtn" class="nav-btn" onclick="changePage(-1)">
+        <img src="assets/graphics/left.jpg" alt="上一頁">
+      </button>
+
+      <!-- 朗讀按鈕 -->
+      <button id="readBtn" class="action-btn" onclick="playCurrentAudio()">
+        <img src="assets/graphics/read.jpg" alt="朗讀頁面">
+      </button>
+
+      <!-- 頁數顯示 -->
+      <div id="pageIndicator" class="page-info">封面</div>
+
+      <!-- 下一頁按鈕 -->
+      <button id="nextBtn" class="nav-btn" onclick="changePage(1)">
+        <img src="assets/graphics/right.jpg" alt="下一頁">
+      </button>
+    </div>
+
+    <!-- 背景音樂開關 -->
+    <div class="audio-controls">
+      <button id="bgmBtn" class="bgm-toggle" onclick="toggleBGM()">🎵 開啟背景音樂</button>
+    </div>
+  </div>
+
+  <!-- 音訊播放器 -->
+  <audio id="speechAudio"></audio>
+  <audio id="musicAudio"></audio>
+  <audio id="bgmAudio" loop src="assets/music/伴奏.mp3"></audio>
+
+  <script>
+    const TOTAL_PAGES = 19; // 0為封面，1~19為內容頁
+    let currentPage = 0;
+    let isBgmPlaying = false;
+
+    const imgEl = document.getElementById('currentPageImg');
+    const pageIndicator = document.getElementById('pageIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    
+    const speechAudio = document.getElementById('speechAudio');
+    const musicAudio = document.getElementById('musicAudio');
+    const bgmAudio = document.getElementById('bgmAudio');
+
+    // 更新頁面內容與聲音資源
+    function updatePage() {
+      // 更新圖片
+      imgEl.src = `assets/graphics/${currentPage}.jpg`;
+
+      // 更新頁碼標示
+      pageIndicator.innerText = currentPage === 0 ? "封面" : `${currentPage} / ${TOTAL_PAGES}`;
+
+      // 按鈕啟用/停用狀態
+      prevBtn.disabled = (currentPage === 0);
+      nextBtn.disabled = (currentPage === TOTAL_PAGES);
+
+      // 自動播放當前頁面的語音與背景配樂
+      playCurrentAudio();
+    }
+
+    // 換頁功能
+    function changePage(direction) {
+      const newPage = currentPage + direction;
+      if (newPage >= 0 && newPage <= TOTAL_PAGES) {
+        currentPage = newPage;
+        updatePage();
+      }
+    }
+
+    // 播放當前頁面的語音 (speech) 與音樂 (music)
+    function playCurrentAudio() {
+      // 停止先前播放的語音與頁面音樂
+      speechAudio.pause();
+      musicAudio.pause();
+
+      // 設定新來源（請依據實際副檔名如 .mp3 調整）
+      speechAudio.src = `assets/speech/speech${currentPage}.mp3`;
+      musicAudio.src = `assets/music/music${currentPage}.mp3`;
+
+      // 嘗試播放語音與音樂
+      speechAudio.play().catch(e => console.log("語音自動播放受瀏覽器限制，請點擊朗讀按鈕"));
+      musicAudio.play().catch(e => console.log("音樂自動播放受瀏覽器限制"));
+    }
+
+    // 背景音樂 (伴奏.mp3) 切換
+    function toggleBGM() {
+      const bgmBtn = document.getElementById('bgmBtn');
+      if (isBgmPlaying) {
+        bgmAudio.pause();
+        bgmBtn.innerText = "🎵 開啟背景音樂";
+      } else {
+        bgmAudio.play();
+        bgmBtn.innerText = "🔇 關閉背景音樂";
+      }
+      isBgmPlaying = !isBgmPlaying;
+    }
+
+    // 鍵盤左右鍵翻頁支援
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') changePage(-1);
+      if (e.key === 'ArrowRight') changePage(1);
+    });
+
+    // 初始化頁面
+    updatePage();
+  </script>
+</body>
+</html>
